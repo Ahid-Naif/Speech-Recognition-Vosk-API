@@ -5,6 +5,8 @@ import queue # تنظيم قراءة الصوت لعدم ضياع البيانا
 import sounddevice as sd # قراءة الصوت من الميكروفون
 import vosk # تحويل الصوت إلى نص
 import sys
+import keyboard
+import json
 
 #from smbus import SMBus # ارسال واستقبال البيانات عن طريق البروتوكول I2C
  
@@ -31,21 +33,31 @@ def callback(indata, frames, time, status):
 try:
     samplerate = 48000
     model = vosk.Model("model")
+    results = []
 
     with sd.RawInputStream(samplerate=samplerate, blocksize = 8000, dtype='int16', channels=1, callback=callback):
             rec = vosk.KaldiRecognizer(model, samplerate)
-            while True: # infinite loop
+            rec.SetWords(True)
+
+            while True:
+                if keyboard.is_pressed('space'):
+                    print('Start talking...')
+                    break
+            while keyboard.is_pressed('space'): # infinite loop
                 # beginning
                 data = q.get()
                 if rec.AcceptWaveform(data):
-                    sentence = rec.Result().split() # تم تحويل الصوت إلى نص
-                    # sentence = [i.strip('"') for i in sentence] # تقسيم الجملة إلى كلمات
-                    print(sentence)
+                    sentence = rec.Result() # تم تحويل الصوت إلى نص
+                    sentence = json.loads(sentence)
+                    results.append(sentence.get("text", ""))
                 else:
-                    sentence = rec.PartialResult().split() # تم تحويل الصوت إلى نص
-                    # sentence = [i.strip('"') for i in sentence] # تقسيم الجملة إلى كلمات
-                    print(sentence)
+                    sentence = rec.PartialResult() # تم تحويل الصوت إلى نص
                 # end of program
+            results = " ".join(results)
+            print(results)
+            speech_file = open("speech.txt", "w")
+            speech_file.write(results)
+            speech_file.close()
 
 except KeyboardInterrupt:
     print('\nDone')
